@@ -1,3 +1,16 @@
+*   Fix `ActiveSupport::BroadcastLogger#tagged` when broadcasting to more than
+    one tagging logger.
+
+    Without a block it returns a logger instead of an `Array`, and with a block
+    the block runs once instead of once per tagging logger.
+
+    ```ruby
+    broadcast = ActiveSupport::BroadcastLogger.new(logger1, logger2)
+    broadcast.tagged("BCX").info("Hello") # => both loggers log "[BCX] Hello"
+    ```
+
+    *Ben Younes*
+
 ## Rails 8.1.4 (September 24, 2026) ##
 
 *   Fix the debug error page rendering for `SyntaxError`s with multi-line messages.

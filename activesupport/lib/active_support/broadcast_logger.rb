@@ -191,6 +191,32 @@ module ActiveSupport
       dispatch(:fatal!)
     end
 
+    # Add the tags to every broadcast that supports tagged logging.
+    #
+    # Without a block, it returns a new BroadcastLogger whose tagging-capable
+    # broadcasts are tagged, so the result can be logged to directly. Broadcasts
+    # that don't support tagging are kept as-is so they keep receiving messages.
+    #
+    # ```
+    # broadcast.tagged("BCX").info("Hello") # All broadcasts log "[BCX] Hello"
+    # ```
+    #
+    # With a block, the tags are applied to every tagging-capable broadcast for
+    # the duration of the block, which is yielded once with the broadcast logger.
+    # ```
+    # broadcast.tagged("BCX") { |logger| logger.info("Hello") }
+    # ```
+    def tagged(*tags, &block)
+      if block
+        tagging_loggers = @broadcasts.select { |logger| logger.respond_to?(:tagged) }
+
+        _tagged(tagging_loggers, 0, tags, &block)
+      else
+        loggers = @broadcasts.map { |logger| logger.respond_to?(:tagged) ? logger.tagged(*tags) : logger }
+        self.class.new(*loggers)
+      end
+    end
+
     def initialize_copy(other)
       @broadcasts = []
       @progname = other.progname.dup
@@ -217,6 +243,16 @@ module ActiveSupport
         @broadcasts.map { |logger|
           logger.send(method, *args, **kwargs, &block)
         }.first
+      end
+
+      def _tagged(loggers, index, tags, &block)
+        if index >= loggers.size
+          yield self
+        else
+          loggers[index].tagged(*tags) do
+            _tagged(loggers, index + 1, tags, &block)
+          end
+        end
       end
 
       def method_missing(name, ...)
