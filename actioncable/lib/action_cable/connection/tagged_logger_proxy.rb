@@ -25,8 +25,7 @@ module ActionCable
 
       def tag(logger, &block)
         if logger.respond_to?(:tagged)
-          current_tags = tags - logger.formatter.current_tags
-          logger.tagged(*current_tags, &block)
+          logger.tagged(*(tags - current_tags_for(logger)), &block)
         else
           yield
         end
@@ -39,6 +38,11 @@ module ActionCable
       end
 
       private
+        def current_tags_for(logger)
+          formatter = logger.formatter
+          formatter.respond_to?(:current_tags) ? formatter.current_tags : []
+        end
+
         def log(type, message, &block) # :doc:
           tag(@logger) { @logger.send type, message, &block }
         end
